@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import zipfile
 from fetch import fetch_original_text, clear_empty_text
-from format import get_all_chaters_from_zip, get_trans_from_zip, format_translated_text
+from format import get_all_chaters_from_zip, get_trans_from_zip, format_translated_text, get_single_chapter
 import pandas as pd
 import threading
 import time
@@ -93,7 +94,7 @@ class TranslationGUI:
             row=0, column=3, padx=5
         )
         
-        # 章节列表
+        # 章节树状图
         ttk.Label(main_frame, text="章节列表:").grid(row=1, column=0, sticky=tk.W, pady=5)
         
         list_frame = ttk.Frame(main_frame)
@@ -102,9 +103,9 @@ class TranslationGUI:
         scrollbar = ttk.Scrollbar(list_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.chapter_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=10)
-        self.chapter_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.chapter_listbox.yview)
+        self.chapter_tree = ttk.Treeview(list_frame, show="tree", selectmode="browse", yscrollcommand=scrollbar.set)
+        self.chapter_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.chapter_tree.yview)
         
         # 输出文件
         ttk.Label(main_frame, text="输出文件:").grid(row=3, column=0, sticky=tk.W, pady=5)
@@ -121,7 +122,7 @@ class TranslationGUI:
         self.format_status.grid(row=4, column=0, columnspan=4, sticky=tk.W, pady=5)
         
         # 整合按钮
-        ttk.Button(main_frame, text="整合选中章节", command=self.format_translation).grid(
+        ttk.Button(main_frame, text="整合选中章节/单节", command=self.format_translation).grid(
             row=5, column=0, columnspan=4, pady=20
         )
         
@@ -152,6 +153,16 @@ class TranslationGUI:
         if path:
             self.format_output_path.delete(0, tk.END)
             self.format_output_path.insert(0, path)
+    
+    def _list_chapter_csvs(self, zip_path, data_dir):
+        """列出某个大章节下的所有CSV文件（相对路径）"""
+        csvs = []
+        target_prefix = f"utf8/{data_dir}/"
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            for name in zf.namelist():
+                if name.startswith(target_prefix) and name.endswith(".csv"):
+                    csvs.append(name)
+        return sorted(csvs)
     
     def fetch_chapters(self):
         """在后台线程中获取原文"""
@@ -223,9 +234,21 @@ class TranslationGUI:
         
         try:
             chapters = get_all_chaters_from_zip(zip_path)
-            self.chapter_listbox.delete(0, tk.END)
+            self.chapter_tree.delete(*self.chapter_tree.get_children())
+            
             for chapter in chapters:
-                self.chapter_listbox.insert(tk.END, chapter)
+                chapter_id = self.chapter_tree.insert(
+                    "", tk.END, text=chapter, values=("chapter", chapter, "")
+                )
+                csvs = self._list_chapter_csvs(zip_path, chapter)
+                for csv_file in csvs:
+                    # 只显示文件名
+                    display_name = csv_file.split("/")[-1]
+                    self.chapter_tree.insert(
+                        chapter_id, tk.END, text=display_name,
+                        values=("section", chapter, csv_file)
+                    )
+            
             self.format_status.config(
                 text=f"已加载 {len(chapters)} 个章节",
                 foreground="green"
@@ -239,9 +262,9 @@ class TranslationGUI:
         zip_path = self.zip_path.get()
         output_file = self.format_output_path.get()
         
-        selection = self.chapter_listbox.curselection()
+        selection = self.chapter_tree.selection()
         if not selection:
-            messagebox.showwarning("警告", "请选择一个章节")
+            messagebox.showwarning("警告", "请选择章节或单节")
             return
         
         if not zip_path or not output_file:
@@ -252,12 +275,28 @@ class TranslationGUI:
             self.format_status.config(text="正在整合...", foreground="blue")
             self.root.update()
             
-            selected_chapter = self.chapter_listbox.get(selection[0])
-            translated_text = get_trans_from_zip(zip_path, selected_chapter)
-            format_translated_text(translated_text, output_file)
+            item = selection[0]
+            kind, chapter, csv_file = self.chapter_tree.item(item, "values")
+            
+            if kind == "chapter":
+                translated_text = get_trans_from_zip(zip_path, chapter)
+                if len(translated_text) == 0:
+                    messagebox.showwarning("警告", "所选章节没有译文可整合")
+                    self.format_status.config(text="就绪", foreground="green")
+                    return
+                format_translated_text(translated_text, output_file)
+                msg = f"已整合整章 {chapter} 到 {output_file}"
+            else:
+                translated_text = get_single_chapter(zip_path, chapter, csv_file)
+                if len(translated_text) == 0:
+                    messagebox.showwarning("警告", "所选单节没有译文可整合")
+                    self.format_status.config(text="就绪", foreground="green")
+                    return
+                format_translated_text(translated_text, output_file)
+                msg = f"已整合单节 {csv_file} 到 {output_file}"
             
             self.format_status.config(text="整合完成！", foreground="green")
-            messagebox.showinfo("成功", f"已整合 {selected_chapter} 到 {output_file}")
+            messagebox.showinfo("成功", msg)
             
         except Exception as e:
             self.format_status.config(text=f"错误: {str(e)}", foreground="red")
