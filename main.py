@@ -51,8 +51,18 @@ class TranslationGUI:
         
         # 译文文本框
         ttk.Label(main_frame, text="译文内容:").grid(row=1, column=0, sticky=tk.NW, pady=5)
-        self.translated_text_box = tk.Text(main_frame, width=60, height=20)
-        self.translated_text_box.grid(row=1, column=1, columnspan=2, sticky=tk.EW, padx=5)
+        
+        # 添加滚动条
+        text_frame = ttk.Frame(main_frame)
+        text_frame.grid(row=1, column=1, columnspan=2, sticky=tk.EW, padx=5)
+        
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.translated_text_box = tk.Text(text_frame, width=60, height=20, undo=True, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+        self.translated_text_box.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.translated_text_box.yview)
+
         ttk.Button(main_frame, text="导入", command=self.import_translated_text).grid(
             row=2, column=1, columnspan=2, pady=10
         )
