@@ -1,3 +1,4 @@
+import re
 import requests
 import pandas as pd
 import time
@@ -40,10 +41,13 @@ def fetch_original_text(chapter, include_trans=False):
 
     translated_text = [f"## {chapter}.{data['titleZh']}"] + clear_empty_text(data["sakuraParagraphs"])
 
+    title = data['titleJp']
+    title = re.sub(r'[\\/*?:"<>|]',"", title)
+
     if include_trans:
-        return original_text, translated_text, data['titleJp']
+        return original_text, translated_text, title
     else:
-        return original_text, [], data['titleJp']
+        return original_text, [], title
 
 
 if __name__ == "__main__":
