@@ -41,9 +41,9 @@ def fetch_original_text(chapter, include_trans=False):
     translated_text = [f"## {chapter}.{data['titleZh']}"] + clear_empty_text(data["sakuraParagraphs"])
 
     if include_trans:
-        return original_text, translated_text, data['titleZh']
+        return original_text, translated_text, data['titleJp']
     else:
-        return original_text, [], data['titleZh']
+        return original_text, [], data['titleJp']
 
 
 if __name__ == "__main__":

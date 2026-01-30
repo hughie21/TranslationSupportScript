@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import zipfile
 from fetch import fetch_original_text, clear_empty_text
 from format import get_all_chaters_from_zip, get_trans_from_zip, format_translated_text, get_single_chapter
+from load import load_text_to_file
 import pandas as pd
 import threading
 import time
@@ -28,7 +29,65 @@ class TranslationGUI:
         self.format_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.format_frame, text="整合译文")
         self.setup_format_tab()
+
+        # 选项卡3：导入译文
+        self.load_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.load_frame, text="导入译文")
+        self.setup_load_tab()
+    
+    def setup_load_tab(self):
+        """设置导入译文选项卡"""
+        main_frame = ttk.LabelFrame(self.load_frame, text="译文导入设置", padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
+        # CSV文件路径
+        ttk.Label(main_frame, text="CSV文件路径:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.load_csv_path = ttk.Entry(main_frame, width=40)
+        self.load_csv_path.grid(row=0, column=1, sticky=tk.EW, padx=5)
+        
+        ttk.Button(main_frame, text="浏览...", command=self.browse_load_csv).grid(
+            row=0, column=2, padx=5
+        )
+        
+        # 译文文本框
+        ttk.Label(main_frame, text="译文内容:").grid(row=1, column=0, sticky=tk.NW, pady=5)
+        self.translated_text_box = tk.Text(main_frame, width=60, height=20)
+        self.translated_text_box.grid(row=1, column=1, columnspan=2, sticky=tk.EW, padx=5)
+        ttk.Button(main_frame, text="导入", command=self.import_translated_text).grid(
+            row=2, column=1, columnspan=2, pady=10
+        )
+
+    def browse_load_csv(self):
+        path = filedialog.askopenfilename(
+            title="选择CSV文件",
+            filetypes=[("CSV文件", "*.csv"), ("所有文件", "*.*")]
+        )
+        if path:
+            self.load_csv_path.delete(0, tk.END)
+            self.load_csv_path.insert(0, path)
+    
+    def import_translated_text(self):
+        csv_path = self.load_csv_path.get()
+        text = self.translated_text_box.get("1.0", tk.END)
+        if not csv_path:
+            messagebox.showwarning("警告", "请先选择CSV文件")
+            return
+        if not text.strip():
+            messagebox.showwarning("警告", "请输入译文内容")
+            return
+        output_path = filedialog.asksaveasfilename(
+            title="保存导入后的CSV文件",
+            defaultextension=".csv",
+            filetypes=[("CSV文件", "*.csv"), ("所有文件", "*.*")]
+        )
+        if not output_path:
+            return
+        try:
+            load_text_to_file(csv_path, text, output_path)
+            messagebox.showinfo("成功", f"译文已成功导入并保存到 {output_path}")
+        except Exception as e:
+            messagebox.showerror("错误", f"导入失败: {str(e)}")
+
     def setup_fetch_tab(self):
         """设置获取原文选项卡"""
         main_frame = ttk.LabelFrame(self.fetch_frame, text="原文获取设置", padding=15)
