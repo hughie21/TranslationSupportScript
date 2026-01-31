@@ -78,14 +78,14 @@ def format_translated_text(translated_text, output_path):
     for segment in segments:
         if len(segment) == 2:
             _, end = segment
-            translated_text[end] = f"{translated_text[end]}\n"
+            translated_text[end] = f"{translated_text[end]}\n\n"
         else:
             idx = segment[0]
-            translated_text[idx] = f"{translated_text[idx]}\n"
+            translated_text[idx] = f"{translated_text[idx]}\n\n"
     
     not_conversation = set([i for i in range(1, len(translated_text) - 1)]) - set(conversation_pos)
     for idx in not_conversation:
-        translated_text[idx] = f"{translated_text[idx]}\n"
+        translated_text[idx] = f"{translated_text[idx]}\n\n"
 
     text = "\n".join(translated_text)
     with open(output_path, "w", encoding="utf-8") as f:
