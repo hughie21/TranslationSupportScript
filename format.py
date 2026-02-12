@@ -1,8 +1,13 @@
+import os
+import traceback
 import zipfile
 import pandas as pd
 import re
+from docx import Document
+import win32com.client as win32
+from win32com.client import constants
 
-def get_all_chaters_from_zip(zip_path):
+def get_all_chatpers_from_zip(zip_path):
     data_dirs = set()
     
     with zipfile.ZipFile(zip_path, 'r') as zip_file:
@@ -65,6 +70,18 @@ def find_continuous_segments(nums):
         result.append((start, end))
     return result
 
+def parse_ruby(text):
+    pattern = r'<([^>]*)>{([^}]*)}'
+    matches = re.findall(pattern, text)
+    if not matches:
+        return f"<p>{text}</p>"
+    for match in matches:
+        full_match = f"<{match[0]}>{{{match[1]}}}"
+        ruby_html = f"<ruby><rb>{match[0]}</rb><rp>({match[1]})</rp><rt>{match[1]}</rt><rp>({match[1]})</rp></ruby>"
+        text = text.replace(full_match, ruby_html)
+
+    return f"<p>{text}</p>"
+
 def format_translated_text(translated_text, output_path):
     conversation_pos = []
     translated_text = [line.strip() for line in translated_text if isinstance(line, str)]
@@ -75,24 +92,30 @@ def format_translated_text(translated_text, output_path):
 
     segments = find_continuous_segments(conversation_pos)
 
+    for i in range(len(translated_text)):
+        if translated_text[i].startswith("##"):
+            translated_text[i] = f"<h1>{translated_text[i].lstrip('#')}</h1>"
+            continue
+        translated_text[i] = parse_ruby(translated_text[i])
+
     for segment in segments:
         if len(segment) == 2:
             _, end = segment
-            translated_text[end] = f"{translated_text[end]}\n\n"
+            translated_text[end] = f"{translated_text[end]}<p></p>"
         else:
             idx = segment[0]
-            translated_text[idx] = f"{translated_text[idx]}\n\n"
+            translated_text[idx] = f"{translated_text[idx]}<p></p>"
     
     not_conversation = set([i for i in range(1, len(translated_text) - 1)]) - set(conversation_pos)
     for idx in not_conversation:
-        translated_text[idx] = f"{translated_text[idx]}\n\n"
+        translated_text[idx] = f"{translated_text[idx]}<p></p>"
 
     text = "\n".join(translated_text)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(text)
     
 if __name__ == "__main__":
-    zip_path = "2026_01_29_10_45_10_253e3a.zip"
-    data_dirs = get_all_chaters_from_zip(zip_path)
+    zip_path = "2026_02_05_21_12_28_1f9c28.zip"
+    data_dirs = get_all_chatpers_from_zip(zip_path)
 
-    format_translated_text(get_trans_from_zip(zip_path, data_dirs[0]), "formatted_translated_text.md")
+    format_translated_text(get_trans_from_zip(zip_path, data_dirs[0]), "formatted_translated_text.html")

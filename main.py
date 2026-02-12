@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import zipfile
 from fetch import fetch_original_text, clear_empty_text
-from format import get_all_chaters_from_zip, get_trans_from_zip, format_translated_text, get_single_chapter
+from format import get_all_chatpers_from_zip, get_trans_from_zip, format_translated_text, get_single_chapter
 from load import load_text_to_file
 import pandas as pd
 import threading
@@ -302,7 +302,7 @@ class TranslationGUI:
             return
         
         try:
-            chapters = get_all_chaters_from_zip(zip_path)
+            chapters = get_all_chatpers_from_zip(zip_path)
             self.chapter_tree.delete(*self.chapter_tree.get_children())
             
             for chapter in chapters:
